@@ -1,152 +1,124 @@
-from tkinter import *
-from tkinter import messagebox
+import tkinter as tk
+from tkinter import messagebox, simpledialog
+import ttkbootstrap as ttk
+from ttkbootstrap.constants import *
 import pyperclip
 import json
-import os
-
-# Constants
-PINK = "#e2979c"
-RED = "#e7305b"
-GREEN = "#9bdeac"
-YELLOW = "#f7f5dd"
-FONT_NAME = "Ubuntu Light"
-# ---------------------------- PASSWORD GENERATOR ------------------------------- #
-# Password Generator
 from random import choice, randint, shuffle
-def pass_gen():
+
+# ---------------------------- CONSTANTS ------------------------------- #
+FONT_NAME = "Helvetica"
+
+# ---------------------------- PASSWORD GENERATOR ------------------------------- #
+def generate_password():
+    """Generates a random, strong password and copies it to the clipboard."""
     letters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
     numbers = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
     symbols = ['!', '#', '$', '%', '&', '(', ')', '*', '+']
 
-    nr_letters = randint(8, 10)
-    nr_symbols = randint(2, 4)
-    nr_numbers = randint(2, 4)
+    password_letters = [choice(letters) for _ in range(randint(8, 10))]
+    password_symbols = [choice(symbols) for _ in range(randint(2, 4))]
+    password_numbers = [choice(numbers) for _ in range(randint(2, 4))]
 
-    password_letters = [choice(letters) for _ in range(nr_letters + 1)]
-    password_symbols = [choice(symbols) for _ in range(nr_symbols + 1)]
-    password_numbers = [choice(numbers) for _ in range(nr_numbers + 1)]
-    
-    password_list = password_letters + password_numbers + password_symbols
-
+    password_list = password_letters + password_symbols + password_numbers
     shuffle(password_list)
 
     password = "".join(password_list)
-    # for char in password_list:
-    #     password += char
+    password_entry.delete(0, tk.END)
+    password_entry.insert(0, password)
     pyperclip.copy(password)
-    passw_input.insert(END, string=password)
+    messagebox.showinfo(title="Password Generated", message="Password copied to clipboard!")
 
 # ---------------------------- SAVE PASSWORD ------------------------------- #
-
-def click_add_btn():
-    
+def save():
+    """Saves the website, email, and password to a JSON file."""
+    website = website_entry.get()
+    email = email_entry.get()
+    password = password_entry.get()
     new_data = {
-        website_input.get():{
-            "email": email_input.get(),
-            "password": passw_input.get()
+        website: {
+            "email": email,
+            "password": password,
         }
     }
-    
-    if len(website_input.get()) < 1 or len(passw_input.get()) < 1:
-        messagebox.showinfo(title = "Oops", message = "Please dont leave any fields empty")
-    
-    else:
-        ask = messagebox.askokcancel(title = website_input.get(), message = f"These are the details entered: \nEmail: {email_input.get()} \nPassword: {passw_input.get()} \nIs it ok to save?")
-        
-        if ask:
-            
-            try:
-                with open("data.json", "r") as data_file:
-                    data = json.load(data_file) 
-            
-            except FileNotFoundError:
-                with open("data.json", "w") as data_file:
-                    json.dump(new_data, data_file, indent = 4)
-            
-            else:
-                # Updating old data with new data
-                data.update(new_data)
 
-                with open("data.json", "w") as data_file:
-                    # Saving updated data
-                    json.dump(data, data_file, indent = 4)
-            
-            finally:  
-                website_input.delete(0, END)
-                passw_input.delete(0, END)
-                
+    if not website or not password:
+        messagebox.showerror(title="Oops", message="Please don't leave any fields empty!")
+        return
+
+    is_ok = messagebox.askokcancel(title=website, message=f"These are the details entered: \nEmail: {email} "
+                                                      f"\nPassword: {password} \nIs it ok to save?")
+    if is_ok:
+        try:
+            with open("data.json", "r") as data_file:
+                data = json.load(data_file)
+        except (FileNotFoundError, json.JSONDecodeError):
+            data = {}
+        
+        data.update(new_data)
+
+        with open("data.json", "w") as data_file:
+            json.dump(data, data_file, indent=4)
+
+        website_entry.delete(0, tk.END)
+        password_entry.delete(0, tk.END)
 
 # ---------------------------- FIND PASSWORD ------------------------------- #
-
 def find_password():
-    website = website_input.get()
+    """Finds and displays the password for a given website."""
+    website = website_entry.get()
     try:
         with open("data.json", "r") as data_file:
             data = json.load(data_file)
-            web_dict = data[website]
-            web_email = web_dict["email"]
-            web_password = web_dict["password"]
-    except FileNotFoundError:
-        messagebox.showinfo(title = "Oops", message = "No Data file found")
-    except KeyError:
-        messagebox.showinfo(title = "Oops", message = "No details for the website exists.")
-    else:
-        messagebox.showinfo(title = website, message = f"Email: {web_email}\nPassword: {web_password}")
-        passw_input.insert(END, string = web_password)
-        email_input.delete(0, END)
-        email_input.insert(END, string = web_email)
-
+    except (FileNotFoundError, json.JSONDecodeError):
+        messagebox.showerror(title="Error", message="No Data File Found.")
+        return
     
-
-
+    if website in data:
+        email = data[website]["email"]
+        password = data[website]["password"]
+        messagebox.showinfo(title=website, message=f"Email: {email}\nPassword: {password}")
+        pyperclip.copy(password)
+        messagebox.showinfo(title="Copied", message="Password for {} copied to clipboard.".format(website))
+    else:
+        messagebox.showerror(title="Error", message=f"No details for {website} exists.")
 
 # ---------------------------- UI SETUP ------------------------------- #
+window = ttk.Window(themename="superhero")
+window.title("Password Manager")
+window.config(padx=50, pady=50)
 
-# Window
-window = Tk()
-window.title("Password manager")
-window.config(padx = 70, pady = 70, bg = "white")
+# Logo
+canvas = tk.Canvas(width=200, height=200, highlightthickness=0)
+logo_img = tk.PhotoImage(file="logo.png")
+canvas.create_image(100, 100, image=logo_img)
+canvas.grid(row=0, column=1, pady=(0, 20))
 
-canvas = Canvas(width = 220, height = 220, bg = "white", highlightthickness=0)
-logo = PhotoImage(file = "logo.png")
-canvas.create_image(110, 110, image = logo)
-canvas.grid(row = 0, column = 1, columnspan=2)
+# Labels
+website_label = ttk.Label(text="Website:", font=(FONT_NAME, 12))
+website_label.grid(row=1, column=0, sticky="W")
+email_label = ttk.Label(text="Email/Username:", font=(FONT_NAME, 12))
+email_label.grid(row=2, column=0, sticky="W")
+password_label = ttk.Label(text="Password:", font=(FONT_NAME, 12))
+password_label.grid(row=3, column=0, sticky="W")
 
+# Entries
+website_entry = ttk.Entry(width=32)
+website_entry.grid(row=1, column=1, pady=5, sticky="EW")
+website_entry.focus()
+email_entry = ttk.Entry(width=50)
+email_entry.grid(row=2, column=1, columnspan=2, pady=5, sticky="EW")
+email_entry.insert(0, "example@email.com")
+password_entry = ttk.Entry(width=32)
+password_entry.grid(row=3, column=1, pady=5, sticky="EW")
 
-
-# LABELS
-website_label = Label(text = "Website:", bg = "white", font = (FONT_NAME, 15, 'bold'))
-website_label.grid(row = 1, column = 0, padx = 10, pady = 10)
-
-email_label = Label(text = "Email/Username:", bg = "white", font = (FONT_NAME, 15, 'bold'))
-email_label.grid(row = 2, column = 0, padx = 10, pady = 10)
-
-passw_label = Label(text = "Password:", bg = "white", font = (FONT_NAME, 15, 'bold'))
-passw_label.grid(row = 3, column = 0, padx = 10, pady = 10)
-
-
-
-# ENTRIES
-website_input = Entry(width = 22, font = (FONT_NAME, 15), border=2, borderwidth=2)
-website_input.focus()
-website_input.grid(row = 1, column = 1, padx = 10)
-
-email_input = Entry(width = 42, font = (FONT_NAME, 15), border=2, borderwidth=2)
-email_input.grid(row = 2, column = 1, columnspan = 2)
-email_input.insert(0, "example@gmail.com")
-
-passw_input = Entry(width = 22, font = (FONT_NAME, 15), border=2, borderwidth=2)
-passw_input.grid(row = 3, column = 1, padx = 10)
-
+# Buttons
+search_button = ttk.Button(text="Search", width=14, command=find_password, style="info.TButton")
+search_button.grid(row=1, column=2, sticky="EW", padx=(5,0))
+generate_password_button = ttk.Button(text="Generate Password", command=generate_password, style="success.TButton")
+generate_password_button.grid(row=3, column=2, sticky="EW", padx=(5,0))
+add_button = ttk.Button(text="Add", width=43, command=save, style="primary.TButton")
+add_button.grid(row=4, column=1, columnspan=2, pady=(10,0), sticky="EW")
 
 
-# BUTTONS
-passw_btn = Button(text = "Generate password", bg = "red", fg = "yellow", command=pass_gen, font = (FONT_NAME, 15, 'bold'))
-passw_btn.grid(row = 3, column = 2, padx = 10, pady = 10)
-
-add_btn = Button(text = "Add", width=38, bg = "red", fg = "yellow", highlightthickness=2, command=click_add_btn, font = (FONT_NAME, 15, 'bold'))
-add_btn.grid(row=4, column = 1, columnspan=2, padx = 10, pady = 10)
-
-search_btn = Button(text = "Search", bg = "red", fg = "yellow", font = (FONT_NAME, 15, 'bold'), width=16, command=find_password)
-search_btn.grid(row = 1, column = 2, padx = 10, pady = 10)
 window.mainloop()
